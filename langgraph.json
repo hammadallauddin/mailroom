@@ -1,0 +1,15 @@
+{
+  "dockerfile_lines": [],
+  "graphs": {
+    "mailroom": "./src/mailroom/graph.py:basic",
+    "mailroom_hitl": "./src/mailroom/graph.py:hitl",
+    "mailroom_memory": "./src/mailroom/graph.py:memory",
+    "mailroom_gmail": "./src/mailroom/graph.py:gmail",
+    "mailroom_cron": "./src/mailroom/cron.py:graph"
+  },
+  "python_version": "3.11",
+  "env": ".env",
+  "dependencies": [
+    "."
+  ]
+}
