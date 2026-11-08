@@ -17,16 +17,15 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Callable, Literal
+from typing import Any
 
-from langchain.chat_models import init_chat_model
-from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
 from langgraph.graph import END, START, StateGraph
 from langgraph.store.base import BaseStore
 from langgraph.types import Command, interrupt
 
 from mailroom.config import get_settings
+from mailroom.llm import get_chat_model, get_router_model
 from mailroom.memory import (
     CAL_PREFERENCES,
     RESPONSE_PREFERENCES,
@@ -143,11 +142,9 @@ def _build_nodes(options: GraphOptions, tools: list[BaseTool], tools_by_name: di
         if options.memory and store is not None:
             update_profile(store, name, messages, default)
 
-    router_llm = init_chat_model(
-        options.model or settings.model, temperature=0.0
-    ).with_structured_output(RouterSchema)
-    agent_llm = init_chat_model(
-        options.model or settings.model, temperature=settings.temperature
+    router_llm = get_router_model(options.model).with_structured_output(RouterSchema)
+    agent_llm = get_chat_model(
+        model=options.model, temperature=settings.temperature
     ).bind_tools(tools, tool_choice="required" if options.hitl else "any")
 
     def triage_router(state: State, store: BaseStore = None) -> Command:  # type: ignore[assignment]
@@ -384,6 +381,7 @@ def _build_nodes(options: GraphOptions, tools: list[BaseTool], tools_by_name: di
                     ],
                     DEFAULT_TRIAGE_INSTRUCTIONS,
                 )
+                break
 
             elif response_type == "response":
                 results.append(

@@ -381,6 +381,9 @@ python tests/run_all_tests.py --implementation basic
 
 # Triage accuracy against the LangSmith dataset "Mailroom: E-mail Triage Dataset"
 python -m mailroom.eval.evaluate_triage
+
+# Execute the tutorial notebooks (opt-in; also needs API keys)
+RUN_NOTEBOOK_TESTS=1 pytest tests/test_notebooks.py -v
 ```
 
 The evaluation script creates the dataset on first run, computes a

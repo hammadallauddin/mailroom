@@ -1,12 +1,19 @@
 #!/usr/bin/env python
 import os
 import sys
-import nbformat
-from nbconvert.preprocessors import ExecutePreprocessor
 from pathlib import Path
+
+import nbformat
 import pytest
+from nbconvert.preprocessors import ExecutePreprocessor
 
 NOTEBOOKS_DIR = Path(__file__).parent.parent / "notebooks"
+
+# Notebook execution needs API keys and network access, so keep it opt-in.
+pytestmark = pytest.mark.skipif(
+    os.getenv("RUN_NOTEBOOK_TESTS") != "1",
+    reason="Notebook execution is opt-in; set RUN_NOTEBOOK_TESTS=1 to run it.",
+)
 
 # Skip notebooks that require specific setup or take too long to execute in automated tests
 SKIP_NOTEBOOKS = []

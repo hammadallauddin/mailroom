@@ -30,7 +30,16 @@ class IngestionJob:
     skip_filters: bool = False
 
 
-async def ingest(state: IngestionJob) -> dict:
+@dataclass(kw_only=True)
+class IngestionState(IngestionJob):
+    """Ingestion job plus the outcome reported back by the graph."""
+
+    status: str = ""
+    exit_code: int = 0
+    error: str | None = None
+
+
+async def ingest(state: IngestionState) -> dict:
     """Fetch recent emails and submit them to the configured graph."""
     logger.info(
         "Ingesting email for %s from the past %s minutes into %s",
@@ -40,13 +49,17 @@ async def ingest(state: IngestionJob) -> dict:
     )
     try:
         exit_code = await fetch_and_process_emails(state)
-        return {"status": "success" if exit_code == 0 else "error", "exit_code": exit_code}
+        return {
+            "status": "success" if exit_code == 0 else "error",
+            "exit_code": exit_code,
+            "error": None,
+        }
     except Exception as exc:  # noqa: BLE001 - report failures through graph state
         logger.exception("Ingestion job failed")
         return {"status": "error", "error": str(exc)}
 
 
-builder = StateGraph(IngestionJob)
+builder = StateGraph(IngestionState)
 builder.add_node("ingest_emails", ingest)
 builder.add_edge(START, "ingest_emails")
 graph = builder.compile()

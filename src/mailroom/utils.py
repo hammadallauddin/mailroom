@@ -3,17 +3,18 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 import html2text
 
 _HTML_MARKERS = ("<!doctype", "<html", "<body")
 _GMAIL_KEYS = {
-    "author": ("from", "From"),
+    "author": ("from", "From", "author"),
     "to": ("to", "To"),
     "subject": ("subject", "Subject"),
-    "email_thread": ("body", "Body", "page_content"),
-    "email_id": ("id", "Id", "message_id"),
+    "email_thread": ("body", "Body", "page_content", "email_thread"),
+    "email_id": ("id", "Id", "message_id", "email_id"),
 }
 
 

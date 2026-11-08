@@ -234,10 +234,21 @@ async def fetch_and_process_emails(args):
             
         print(f"Gmail search query: {query}")
         
-        # Execute the search
-        results = service.users().messages().list(userId="me", q=query).execute()
-        messages = results.get("messages", [])
-        
+        # Execute the search, following pagination until every match is collected
+        messages = []
+        page_token = None
+        while True:
+            results = (
+                service.users()
+                .messages()
+                .list(userId="me", q=query, pageToken=page_token)
+                .execute()
+            )
+            messages.extend(results.get("messages", []))
+            page_token = results.get("nextPageToken")
+            if not page_token:
+                break
+
         if not messages:
             print("No emails found matching the criteria")
             return 0
