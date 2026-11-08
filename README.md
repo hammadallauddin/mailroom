@@ -100,8 +100,10 @@ A run looks like this:
 
 ## Graph presets
 
-All presets are built by `mailroom.graph.build_workflow(GraphOptions(...))` and
-exposed through `langgraph.json`.
+The four assistant presets are built by
+`mailroom.graph.build_workflow(GraphOptions(...))`; `mailroom_cron` is a separate
+ingestion graph in `mailroom/cron.py`. All five are exposed through
+`langgraph.json`.
 
 | Graph ID          | Preset   | HITL | Memory | Gmail tools | Use it for |
 | ----------------- | -------- | :--: | :----: | :---------: | ---------- |
@@ -141,9 +143,9 @@ exposed through `langgraph.json`.
 └── notebooks/                  # Walkthroughs: agent, evaluation, HITL, memory
 ```
 
-`src/mailroom` never calls `load_dotenv()` at import time. Credentials are read
-lazily via `mailroom.config.get_settings()`, so importing a graph offline is
-always safe.
+Importing the graph modules never calls `load_dotenv()` at import time.
+Credentials are read lazily via `mailroom.config.get_settings()`, so importing a
+graph offline is always safe.
 
 ## Requirements
 
@@ -197,6 +199,8 @@ Settings are read from the environment (and `.env`) when first needed.
 | `LANGSMITH_API_KEY`    | —                                   | LangSmith credentials |
 | `LANGSMITH_PROJECT`    | —                                   | Trace/evaluation project name |
 | `EMAIL_ADDRESS`        | —                                   | Default mailbox for Gmail ingestion |
+| `GMAIL_SECRET`         | —                                   | Hosted deployments: contents of `secrets.json` |
+| `GMAIL_TOKEN`          | —                                   | Hosted deployments: contents of `token.json` |
 
 To change provider, set `MAILROOM_MODEL` and install the matching LangChain
 integration. For example:
@@ -305,9 +309,10 @@ The notebooks import `mailroom.*`, so the editable install (or
 
 ## Gmail and Google Calendar
 
-The `mailroom_gmail` graph replaces the mock tools with real ones:
-`send_email_tool`, `check_calendar_tool`, `schedule_meeting_tool`, plus message
-fetching and `mark_as_read`.
+The `mailroom_gmail` graph swaps the mock tools for `send_email_tool`,
+`check_calendar_tool`, and `schedule_meeting_tool`. Ingestion happens outside the
+graph (`run_ingest.py` fetches messages), and the graph marks processed messages
+as read.
 
 Setup at a glance (full walkthrough in
 [`src/mailroom/tools/gmail/README.md`](src/mailroom/tools/gmail/README.md)):
@@ -330,8 +335,8 @@ Setup at a glance (full walkthrough in
      --graph-name mailroom_gmail
    ```
 
-Useful ingestion flags: `--include-read`, `--skip-filters`, `--rerun`,
-`--early`, `--mock`, `--url`.
+Useful ingestion flags: `--include-read`, `--early`, `--minutes-since`,
+`--graph-name`, and `--url`. `--email` falls back to `EMAIL_ADDRESS` when set.
 
 > **Security note.** `.secrets/` contains OAuth tokens that can read and send
 > mail. Keep it out of version control and never commit `.env`.

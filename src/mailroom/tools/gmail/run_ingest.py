@@ -1,9 +1,8 @@
 #!/usr/bin/env python
-"""
-Simple Gmail ingestion script based directly on test.ipynb that works with LangSmith tracing.
+"""Ingest Gmail messages into a running Mailroom LangGraph deployment.
 
-This script provides a minimal implementation for ingesting emails to the LangGraph server,
-with reliable LangSmith tracing.
+The script searches Gmail for recent messages, normalizes each one, and submits
+it to the configured graph through the LangGraph SDK.
 """
 
 import base64
@@ -288,10 +287,10 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Simple Gmail ingestion for LangGraph with reliable tracing")
     
     parser.add_argument(
-        "--email", 
-        type=str, 
-        required=True,
-        help="Email address to fetch messages for"
+        "--email",
+        type=str,
+        default=os.getenv("EMAIL_ADDRESS"),
+        help="Email address to fetch messages for (defaults to EMAIL_ADDRESS)",
     )
     parser.add_argument(
         "--minutes-since", 
@@ -336,6 +335,8 @@ def parse_args():
 if __name__ == "__main__":
     # Get command line arguments
     args = parse_args()
-    
+    if not args.email:
+        raise SystemExit("--email is required (or set EMAIL_ADDRESS)")
+
     # Run the script
     exit(asyncio.run(fetch_and_process_emails(args)))

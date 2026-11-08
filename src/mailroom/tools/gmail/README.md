@@ -1,6 +1,6 @@
 # Gmail Integration Tools
 
-Connect your email assistant to Gmail and Google Calendar APIs.
+Connect Mailroom to the Gmail and Google Calendar APIs.
 
 ## Graph
 
@@ -68,32 +68,31 @@ langgraph dev
 2. Run the ingestion script in another terminal with desired parameters:
 
 ```bash
-python src/mailroom/tools/gmail/run_ingest.py --email lance@langgraph.dev --minutes-since 1000
+python src/mailroom/tools/gmail/run_ingest.py --email you@example.com --minutes-since 1000
 ```
 
-- By default, this will use the local deployment URL (http://127.0.0.1:2024) and fetch emails from the past 1000 minutes.
-- It will use the LangGraph SDK to pass each email to the locally running email assistant.
+- By default, this will use the local deployment URL (http://127.0.0.1:2024). The example fetches emails from the past 1000 minutes; the default window is 120 minutes.
+- It will use the LangGraph SDK to pass each email to the locally running Mailroom graph.
 - It will use the `mailroom_gmail` graph, which is configured to use Gmail tools.
 
 #### Parameters:
 
 - `--graph-name`: Name of the LangGraph to use (default: "mailroom_gmail")
-- `--email`: The email address to fetch messages from (alternative to setting EMAIL_ADDRESS)
-- `--minutes-since`: Only process emails that are newer than this many minutes (default: 60)
+- `--email`: The email address to fetch messages for (falls back to the `EMAIL_ADDRESS` environment variable)
+- `--minutes-since`: Only process emails that are newer than this many minutes (default: 120)
 - `--url`: URL of the LangGraph deployment (default: http://127.0.0.1:2024)
-- `--rerun`: Process emails that have already been processed (default: false)
 - `--early`: Stop after processing one email (default: false)
 - `--include-read`: Include emails that have already been read (by default only unread emails are processed)
-- `--skip-filters`: Process all emails without filtering (by default only latest messages in threads where you're not the sender are processed)
+- `--rerun`: Accepted for CLI compatibility; it does not currently change ingestion behaviour
+- `--skip-filters`: Accepted for CLI compatibility; it does not currently change ingestion behaviour
 
 #### Troubleshooting:
 
 - **Missing emails?** The Gmail API applies filters to show only important/primary emails by default. You can:
   - Increase the `--minutes-since` parameter to a larger value (e.g., 1000) to fetch emails from a longer time period
   - Use the `--include-read` flag to process emails marked as "read" (by default only unread emails are processed)
-  - Use the `--skip-filters` flag to include all messages (not just the latest in a thread, and including ones you sent)
-  - Try running with all options to process everything: `--include-read --skip-filters --minutes-since 1000`
-  - Use the `--mock` flag to test the system with simulated emails
+  - Try running with all options to process everything: `--include-read --minutes-since 1000`
+  - Send yourself a test email and run with `--early` to verify the end-to-end flow
 
 ### 2. Connect to Agent Inbox
 
@@ -109,26 +108,26 @@ After ingestion, you can access your all interrupted threads in Agent Inbox (htt
 1. Navigate to the deployments page in LangSmith
 2. Click New Deployment
 3. Connect it to your fork of this repository and the desired branch
-4. Give it a name like `Yourname-Email-Assistant`
+4. Give it a name like `your-mailroom`
 5. Add the following environment variables:
    * `GOOGLE_API_KEY` (or the key for your `MAILROOM_MODEL` provider)
    * `GMAIL_SECRET` - This is the full dictionary in `.secrets/secrets.json`
    * `GMAIL_TOKEN` - This is the full dictionary in `.secrets/token.json`
-6. Click Submit 
-7. Get the `API URL` (https://your-email-assistant-xxx.us.langgraph.app) from the deployment page 
+6. Click Submit
+7. Get the `API URL` (https://your-mailroom-xxx.us.langgraph.app) from the deployment page
 
 ### 2. Run Ingestion with Hosted Deployment
 
 Once your LangGraph deployment is up and running, you can test the email ingestion with:
 
 ```bash
-python src/mailroom/tools/gmail/run_ingest.py --email lance@langchain.dev --minutes-since 2440 --include-read --url https://your-email-assistant-xxx.us.langgraph.app
+python src/mailroom/tools/gmail/run_ingest.py --email you@example.com --minutes-since 2440 --include-read --url https://your-mailroom-xxx.us.langgraph.app
 ```
 
 ### 3. Connect to Agent Inbox
 
 After ingestion, you can access your all interrupted threads in Agent Inbox (https://dev.agentinbox.ai/):
-* Deployment URL: https://your-email-assistant-xxx.us.langgraph.app
+* Deployment URL: https://your-mailroom-xxx.us.langgraph.app
 * Assistant/Graph ID: `mailroom_gmail`
 * Name: `Graph Name`
 * LangSmith API Key: `LANGSMITH_API_KEY`
@@ -140,7 +139,7 @@ With a hosted deployment, you can set up a cron job to run the ingestion script 
 To automate email ingestion, set up a scheduled cron job using the included setup script:
 
 ```bash
-python src/mailroom/tools/gmail/setup_cron.py --email lance@langchain.dev --url https://lance-email-assistant-4681ae9646335abe9f39acebbde8680b.us.langgraph.app 
+python src/mailroom/tools/gmail/setup_cron.py --email you@example.com --url https://your-mailroom-xxx.us.langgraph.app
 ```
 
 #### Parameters:
@@ -183,87 +182,31 @@ await client.crons.delete(cron_job_id)
 
 ## How Gmail Ingestion Works
 
-The Gmail ingestion process works in three main stages:
-
-### 1. CLI Parameters → Gmail Search Query
-
-CLI parameters are translated into a Gmail search query:
+The ingestion script is intentionally small. It turns the CLI options into a
+single Gmail search query and submits every matching message to the selected
+graph:
 
 - `--minutes-since 1440` → `after:TIMESTAMP` (emails from the last 24 hours)
-- `--email you@example.com` → `to:you@example.com OR from:you@example.com` (emails where you're sender or recipient)
-- `--include-read` → removes `is:unread` filter (includes read messages)
+- `--email you@example.com` → `to:you@example.com OR from:you@example.com`
+  (emails where you are sender or recipient)
+- `--include-read` → removes the default `is:unread` filter
 
 For example, running:
-```
+
+```bash
 python run_ingest.py --email you@example.com --minutes-since 1440 --include-read
 ```
 
-Creates a Gmail API search query like:
+creates a Gmail API search query like:
+
 ```
 (to:you@example.com OR from:you@example.com) after:1745432245
 ```
 
-### 2. Search Results → Thread Processing
-
-For each message returned by the search:
-
-1. The script obtains the thread ID
-2. Using this thread ID, it fetches the **complete thread** with all messages
-3. Messages in the thread are sorted by date to identify the latest message
-4. Depending on filtering options, it processes either:
-   - The specific message found in the search (default behavior)
-   - The latest message in the thread (when using `--skip-filters`)
-
-### 3. Default Filters and `--skip-filters` Behavior
-
-#### Default Filters Applied
-
-Without `--skip-filters`, the system applies these three filters in sequence:
-
-1. **Unread Filter** (controlled by `--include-read`):
-   - Default behavior: Only processes unread messages 
-   - With `--include-read`: Processes both read and unread messages
-   - Implementation: Adds `is:unread` to the Gmail search query
-   - This filter happens at the search level before any messages are retrieved
-
-2. **Sender Filter**:
-   - Default behavior: Skips messages sent by your own email address
-   - Implementation: Checks if your email appears in the "From" header
-   - Logic: `is_from_user = email_address in from_header`
-   - This prevents the assistant from responding to your own emails
-
-3. **Thread-Position Filter**:
-   - Default behavior: Only processes the most recent message in each thread
-   - Implementation: Compares message ID with the last message in thread
-   - Logic: `is_latest_in_thread = message["id"] == last_message["id"]`
-   - Prevents processing older messages when a newer reply exists
-   
-The combination of these filters means only the latest message in each thread that was not sent by you and is unread (unless `--include-read` is specified) will be processed.
-
-#### Effect of `--skip-filters` Flag
-
-When `--skip-filters` is enabled:
-
-1. **Bypasses Sender and Thread-Position Filters**:
-   - Messages sent by you will be processed
-   - Messages that aren't the latest in thread will be processed
-   - Logic: `should_process = skip_filters or (not is_from_user and is_latest_in_thread)`
-
-2. **Changes Which Message Is Processed**:
-   - Without `--skip-filters`: Uses the specific message found by search
-   - With `--skip-filters`: Always uses the latest message in the thread
-   - Even if the latest message wasn't found in the search results
-
-3. **Unread Filter Still Applies (unless overridden)**:
-   - `--skip-filters` does NOT bypass the unread filter
-   - To process read messages, you must still use `--include-read`
-   - This is because the unread filter happens at the search level
-
-In summary:
-- Default: Process only unread messages where you're not the sender and that are the latest in their thread
-- `--skip-filters`: Process all messages found by search, using the latest message in each thread
-- `--include-read`: Include read messages in the search
-- `--include-read --skip-filters`: Most comprehensive, processes the latest message in all threads found by search
+Each message returned by that search is fetched in full, normalized, and passed
+to the graph as `input={"email_input": {...}}`. `--early` stops after the first
+message. `--rerun` and `--skip-filters` are accepted for CLI compatibility but
+currently do not change behaviour.
 
 ## Important Gmail API Limitations
 
@@ -274,7 +217,8 @@ The Gmail API has several limitations that affect email ingestion:
    - Search results can be delayed for very recent messages (indexing lag)
    - Search results might not include all messages that technically match criteria
 
-2. **Two-Stage Retrieval Process**:
-   - Initial search to find relevant message IDs
-   - Secondary thread retrieval to get complete conversations
-   - This two-stage process is necessary because search doesn't guarantee complete thread information
+2. **Message-Level Retrieval**:
+   - The search returns message IDs, which are then fetched individually
+   - The script does not currently rebuild or deduplicate full Gmail threads
+   - Previously processed messages can be submitted again unless your graph
+     handles idempotency

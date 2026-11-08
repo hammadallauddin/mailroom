@@ -13,7 +13,7 @@ from mailroom.graph import basic
 
 DATASET_NAME = "Mailroom: E-mail Triage Dataset"
 FEEDBACK_KEY = "classification"
-RESULTS_DIR = os.path.join("eval", "results")
+RESULTS_DIR = os.path.join(os.path.dirname(__file__), "results")
 
 
 def ensure_dataset(client: Client) -> str:

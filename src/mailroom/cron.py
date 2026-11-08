@@ -1,7 +1,7 @@
 """Scheduled inbox ingestion for LangGraph Platform cron jobs.
 
 The graph is a thin wrapper around the same ingestion function used by the
-``mailroom-ingest`` CLI, so a hosted deployment can poll Gmail on a schedule.
+``run_ingest.py`` CLI, so a hosted deployment can poll Gmail on a schedule.
 """
 
 from __future__ import annotations

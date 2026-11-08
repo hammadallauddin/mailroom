@@ -44,7 +44,7 @@ async def main(
     
     # Register the cron job
     cron = await client.crons.create(
-        "cron",              # The graph name for the cron
+        "mailroom_cron",     # The graph name for the cron
         schedule=schedule,   # Cron schedule expression
         input=cron_input     # Input parameters for the cron graph
     )

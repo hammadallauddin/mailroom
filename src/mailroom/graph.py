@@ -204,7 +204,7 @@ def _build_nodes(options: GraphOptions, tools: list[BaseTool], tools_by_name: di
             [
                 {
                     "action_request": {
-                        "action": f"Email Assistant: {state['classification_decision']}",
+                        "action": f"Mailroom: {state['classification_decision']}",
                         "args": {},
                     },
                     "config": {
